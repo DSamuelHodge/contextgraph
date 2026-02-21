@@ -24,6 +24,11 @@ jobs:
       - name: Install deps
         run: pnpm install
 
+      - name: Install CLIs
+        run: |
+          npm install -g neonctl@latest
+          npm install -g wrangler@latest
+
       - name: Test
         run: pnpm -w run test
 
@@ -44,8 +49,10 @@ jobs:
         run: curl --fail --silent "$WORKER_URL"
 
       - name: Notify on failure
-        if: failure() && secrets.NOTIFICATIONS_WEBHOOK != ''
+        if: failure() && env.NOTIFICATIONS_WEBHOOK != ''
+        env:
+          NOTIFICATIONS_WEBHOOK: ${{ secrets.NOTIFICATIONS_WEBHOOK }}
         run: |
           curl -X POST -H "content-type: application/json" \
             -d '{"text":"ContextGraph production deploy failed."}' \
-            "${{ secrets.NOTIFICATIONS_WEBHOOK }}"
+            "$NOTIFICATIONS_WEBHOOK"
