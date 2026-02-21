@@ -1,6 +1,7 @@
 import type { DriftEvent, KnowledgeNode, Skill } from '../types'
 import type { HumanRequiredEvent } from '../engine/events'
 import { BreakingDriftError, CorruptionError } from './errors'
+import type { Telemetry } from '../telemetry'
 
 export type KnowledgeCommitInput = {
   topic: string
@@ -36,18 +37,21 @@ export type ContextGraphClientConfig = {
   workerUrl: string
   agentId: string
   branch?: string
+  telemetry?: Telemetry
 }
 
 export class ContextGraphClient {
   private readonly workerUrl: string
   private readonly agentId: string
   private branch: string
+  private readonly telemetry?: Telemetry
   private readonly humanHandlers: Array<(event: HumanRequiredEvent) => Promise<void> | void> = []
 
   constructor(config: ContextGraphClientConfig) {
     this.workerUrl = config.workerUrl.replace(/\/$/, '')
     this.agentId = config.agentId
     this.branch = config.branch ?? 'main'
+    this.telemetry = config.telemetry
   }
 
   async resume(): Promise<SessionContext> {
@@ -74,7 +78,7 @@ export class ContextGraphClient {
     const index = headerIndex ?? payload.index ?? ''
     const parsed = index ? (JSON.parse(index) as any) : {}
 
-    return {
+    const session = {
       index,
       agentId: payload.agentId ?? this.agentId,
       branch: payload.branch ?? this.branch,
@@ -84,6 +88,16 @@ export class ContextGraphClient {
       knowledgeCount: parsed.knowledgeCount ?? 0,
       schemaStatus: warning ? 'degraded' : 'healthy'
     }
+
+    const indexTokenCount = Math.ceil(index.length / 4)
+    this.telemetry?.sessionResume({
+      agentId: session.agentId,
+      branch: session.branch,
+      indexTokenCount,
+      driftStatus: session.schemaStatus
+    })
+
+    return session
   }
 
   async commit(knowledge: KnowledgeCommitInput): Promise<CommitRef> {
@@ -94,7 +108,14 @@ export class ContextGraphClient {
     }`
 
     const data = await this.gql<{ commitKnowledge: { hash: string } }>(query, { input: knowledge })
-    return { hash: data.commitKnowledge.hash }
+    const hash = data.commitKnowledge.hash
+    this.telemetry?.commitKnowledge({
+      topic: knowledge.topic,
+      author: this.agentId,
+      evidenceRefCount: knowledge.evidenceRefs?.length ?? 0,
+      newVersionHash: hash
+    })
+    return { hash }
   }
 
   async close(message: string): Promise<CloseResult> {

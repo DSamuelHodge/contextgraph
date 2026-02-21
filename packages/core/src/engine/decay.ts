@@ -1,4 +1,5 @@
 import type { KnowledgeNode, SchemaEndpoint } from '@core/types'
+import type { Telemetry } from '../telemetry'
 
 export type DecayScore = {
   temporal: number
@@ -24,7 +25,10 @@ export interface DecayDataSource {
 const TOMBSTONE_THRESHOLD = 0.95
 
 export class DecayEngine {
-  constructor(private dataSource: DecayDataSource) {}
+  constructor(
+    private dataSource: DecayDataSource,
+    private telemetry?: Telemetry
+  ) {}
 
   computeScore(node: KnowledgeNode, endpoint: SchemaEndpoint): DecayScore {
     const now = Date.now()
@@ -70,12 +74,20 @@ export class DecayEngine {
       }
     }
 
-    return {
+    const report = {
       branchName,
       scanned: nodes.length,
       tombstoned,
       scores
     }
+
+    this.telemetry?.decayScan({
+      branchName,
+      nodesScanned: report.scanned,
+      nodesTombstoned: report.tombstoned
+    })
+
+    return report
   }
 
   async tombstone(nodeId: string): Promise<void> {

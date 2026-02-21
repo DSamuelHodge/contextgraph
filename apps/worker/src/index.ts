@@ -11,6 +11,7 @@ import { oracleMiddleware } from './middleware/oracle'
 import { handleDriftQueue } from './drift-consumer'
 import { AgentSessionDO } from './AgentSessionDO'
 import type { ContextGraphEngine } from '../../../packages/core/src/engine'
+import { renderDashboard } from './routes/dashboard'
 
 export type AppOptions = {
   skipAuth?: boolean
@@ -96,6 +97,11 @@ export function createApp(options: AppOptions = {}) {
     const db = c.get('db')
     const endpoints = await db.select().from(schema.schema_endpoints)
     return c.json({ status: 'ok', endpoints })
+  })
+
+  app.get('/dashboard', async (c) => {
+    const html = await renderDashboard(c.get('db'))
+    return c.html(html)
   })
 
   app.post('/webhooks/schema-change', async (c) => {

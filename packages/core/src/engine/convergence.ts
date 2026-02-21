@@ -1,4 +1,5 @@
 import type { ConvergenceScore, KnowledgeNode } from '@core/types'
+import type { Telemetry } from '../telemetry'
 
 export type ConvergenceCandidate = {
   nodeA: KnowledgeNode
@@ -19,7 +20,10 @@ export interface ConvergenceDataSource {
 }
 
 export class ConvergenceDetector {
-  constructor(private dataSource: ConvergenceDataSource) {}
+  constructor(
+    private dataSource: ConvergenceDataSource,
+    private telemetry?: Telemetry
+  ) {}
 
   async scan(topic: string): Promise<ConvergenceCandidate[]> {
     const nodes = await this.dataSource.listNodesByTopic(topic)
@@ -45,16 +49,26 @@ export class ConvergenceDetector {
       throw new Error('Convergence threshold not met.')
     }
 
-    if (this.dataSource.promoteCanonical) {
-      return this.dataSource.promoteCanonical(nodes)
-    }
-
-    return {
+    const promoting = this.dataSource.promoteCanonical
+      ? await this.dataSource.promoteCanonical(nodes)
+      : {
       topic: nodes[0].topic,
       claim: nodes[0].claim,
       versionHash: nodes[0].versionHash,
       sources: nodes.map((node) => node.id)
-    }
+      }
+
+    const contributingAgents = nodes
+      .map((node) => (node.metadata as any)?.agentId ?? 'unknown')
+      .filter((value, index, list) => list.indexOf(value) === index)
+
+    this.telemetry?.convergencePromote({
+      topic: nodes[0].topic,
+      contributingAgents: contributingAgents.join(','),
+      convergenceScore: score.combined
+    })
+
+    return promoting
   }
 
   computeScore(nodeA: KnowledgeNode, nodeB: KnowledgeNode): ConvergenceScore {

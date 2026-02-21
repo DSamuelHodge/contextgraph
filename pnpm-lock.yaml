@@ -25,7 +25,7 @@ importers:
         version: 0.10.4
       drizzle-orm:
         specifier: 0.33.0
-        version: 0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(postgres@3.4.8)
+        version: 0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.11.6)(postgres@3.4.8)
       graphql:
         specifier: ^16.8.1
         version: 16.12.0
@@ -42,12 +42,15 @@ importers:
 
   packages/core:
     dependencies:
+      '@opentelemetry/api':
+        specifier: ^1.9.0
+        version: 1.9.0
       drizzle-graphql:
         specifier: latest
-        version: 0.8.5(drizzle-orm@0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(postgres@3.4.8))(graphql@16.12.0)
+        version: 0.8.5(drizzle-orm@0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.11.6)(postgres@3.4.8))(graphql@16.12.0)
       drizzle-orm:
         specifier: 0.33.0
-        version: 0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(postgres@3.4.8)
+        version: 0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.11.6)(postgres@3.4.8)
       graphql:
         specifier: ^16.8.1
         version: 16.12.0
@@ -279,6 +282,10 @@ packages:
 
   '@neondatabase/serverless@0.10.4':
     resolution: {integrity: sha512-2nZuh3VUO9voBauuh+IGYRhGU/MskWHt1IuZvHcJw6GLjDgtqj/KViKo7SIrLdGLdot7vFbiRRw+BgEy3wT9HA==}
+
+  '@opentelemetry/api@1.9.0':
+    resolution: {integrity: sha512-3giAOQvZiH5F9bMlMiv8+GSPMeqg0dbaeo58/0SlA9sxSqZhnUtxzX9/2FzyhS9sWQf5S0GJE0AKBrFqjpeYcg==}
+    engines: {node: '>=8.0.0'}
 
   '@repeaterjs/repeater@3.0.6':
     resolution: {integrity: sha512-Javneu5lsuhwNCryN+pXH93VPQ8g0dBX7wItHFgYiwQmzE1sVdg5tWHiOgHywzL2W21XQopa7IwIEnNbmeUJYA==}
@@ -1492,6 +1499,8 @@ snapshots:
     dependencies:
       '@types/pg': 8.11.6
 
+  '@opentelemetry/api@1.9.0': {}
+
   '@repeaterjs/repeater@3.0.6': {}
 
   '@rollup/rollup-android-arm-eabi@4.58.0':
@@ -1788,18 +1797,19 @@ snapshots:
 
   diff-sequences@29.6.3: {}
 
-  drizzle-graphql@0.8.5(drizzle-orm@0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(postgres@3.4.8))(graphql@16.12.0):
+  drizzle-graphql@0.8.5(drizzle-orm@0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.11.6)(postgres@3.4.8))(graphql@16.12.0):
     dependencies:
-      drizzle-orm: 0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(postgres@3.4.8)
+      drizzle-orm: 0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.11.6)(postgres@3.4.8)
       graphql: 16.12.0
       graphql-parse-resolve-info: 4.14.1(graphql@16.12.0)
     transitivePeerDependencies:
       - supports-color
 
-  drizzle-orm@0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@types/pg@8.11.6)(postgres@3.4.8):
+  drizzle-orm@0.33.0(@cloudflare/workers-types@4.20260228.0)(@neondatabase/serverless@0.10.4)(@opentelemetry/api@1.9.0)(@types/pg@8.11.6)(postgres@3.4.8):
     optionalDependencies:
       '@cloudflare/workers-types': 4.20260228.0
       '@neondatabase/serverless': 0.10.4
+      '@opentelemetry/api': 1.9.0
       '@types/pg': 8.11.6
       postgres: 3.4.8
 

@@ -1,5 +1,6 @@
 import type { DriftEvent, DriftSeverity, RemediationPolicy } from '@core/types'
 import { EngineEventEmitter } from './events'
+import type { Telemetry } from '../telemetry'
 
 export type TypeMap = {
   hash: string
@@ -24,7 +25,8 @@ export interface DriftDataSource {
 export class DriftDetector {
   constructor(
     private dataSource: DriftDataSource,
-    private events?: EngineEventEmitter
+    private events?: EngineEventEmitter,
+    private telemetry?: Telemetry
   ) {}
 
   async detect(endpointId: string): Promise<DriftEvent> {
@@ -34,13 +36,21 @@ export class DriftDetector {
 
     await this.dataSource.updateEndpoint?.(endpointId, severity)
 
-    return {
+    const event = {
       endpointId,
       severity,
       affectedOperations: this.affectedOperations(before, after),
       remediationPolicy,
       detectedAt: new Date()
     }
+
+    this.telemetry?.driftDetect({
+      endpointId,
+      severity: event.severity,
+      affectedOperationCount: event.affectedOperations.length
+    })
+
+    return event
   }
 
   async classify(before: TypeMap, after: TypeMap): Promise<DriftSeverity> {

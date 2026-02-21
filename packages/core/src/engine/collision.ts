@@ -1,5 +1,6 @@
 import type { CollisionClass } from '@core/types'
 import { EngineEventEmitter } from './events'
+import type { Telemetry } from '../telemetry'
 
 export type Collision = {
   id: string
@@ -24,7 +25,8 @@ export interface CollisionDataSource {
 export class CollisionDetector {
   constructor(
     private dataSource: CollisionDataSource,
-    private events?: EngineEventEmitter
+    private events?: EngineEventEmitter,
+    private telemetry?: Telemetry
   ) {}
 
   async detect(branchA: string, branchB: string): Promise<Collision[]> {
@@ -54,27 +56,41 @@ export class CollisionDetector {
 
   async resolve(collision: Collision): Promise<ResolutionResult> {
     const classification = await this.classify(collision)
+    let resolution: ResolutionResult
     switch (classification.kind) {
       case 'ADDITIVE':
-        return { strategy: 'auto_merge', requiresHuman: false }
+        resolution = { strategy: 'auto_merge', requiresHuman: false }
+        break
       case 'CONCURRENT_EDIT':
-        return { strategy: 'schema_first', requiresHuman: false }
+        resolution = { strategy: 'schema_first', requiresHuman: false }
+        break
       case 'SCHEMA_TEMPORAL':
-        return { strategy: 'rebase_to_current', requiresHuman: false }
+        resolution = { strategy: 'rebase_to_current', requiresHuman: false }
+        break
       case 'EPISTEMIC':
         this.events?.emitHumanRequired({
           type: 'EPISTEMIC_COLLISION',
           collisionId: collision.id,
           detail: classification.contradiction
         })
-        return { strategy: 'human_arbitration', requiresHuman: true }
+        resolution = { strategy: 'human_arbitration', requiresHuman: true }
+        break
       case 'POLICY_CONFLICT':
         this.events?.emitHumanRequired({
           type: 'POLICY_CONFLICT',
           collisionId: collision.id,
           field: classification.field
         })
-        return { strategy: 'escalate_immediate', requiresHuman: true }
+        resolution = { strategy: 'escalate_immediate', requiresHuman: true }
+        break
     }
+
+    this.telemetry?.collisionResolve({
+      collisionClass: classification.kind,
+      resolutionStrategy: resolution.strategy,
+      required_human: resolution.requiresHuman
+    })
+
+    return resolution
   }
 }
