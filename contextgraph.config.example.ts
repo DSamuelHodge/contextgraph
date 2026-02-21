@@ -3,13 +3,22 @@ import type { ContextGraphConfig } from './packages/deploy/src/config'
 const config: ContextGraphConfig = {
   agent: {
     id: 'agent-1',
-    defaultBranch: 'main'
+    defaultBranch: 'main',
+    workspaceId: 'default'
   },
   oracles: [
     { name: 'primary', uri: 'https://example.com/graphql' }
   ],
   telemetry: {
-    backend: 'cloudflare'
+    backend: 'cloudflare',
+    clickhouse: {
+      host: process.env.CLICKHOUSE_HOST,
+      database: process.env.CLICKHOUSE_DATABASE ?? 'contextgraph',
+      username: process.env.CLICKHOUSE_USER,
+      password: process.env.CLICKHOUSE_PASSWORD,
+      batchSize: 50,
+      flushIntervalMs: 5000
+    }
   },
   pushContext: {
     maxTokens: 200,

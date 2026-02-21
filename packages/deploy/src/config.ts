@@ -1,8 +1,16 @@
 export interface ContextGraphConfig {
-  agent: { id: string; defaultBranch: string }
+  agent: { id: string; defaultBranch: string; workspaceId?: string }
   oracles: Array<{ name: string; uri: string }>
   telemetry?: {
-    backend: 'cloudflare' | 'otel' | 'both'
+    backend: 'cloudflare' | 'clickhouse' | 'otel' | 'both'
+    clickhouse?: {
+      host?: string
+      database?: string
+      username?: string
+      password?: string
+      batchSize?: number
+      flushIntervalMs?: number
+    }
     otel?: {
       endpoint?: string
       headers?: Record<string, string>
@@ -26,7 +34,7 @@ export interface ContextGraphConfig {
 }
 
 export const defaultConfig: ContextGraphConfig = {
-  agent: { id: 'agent-1', defaultBranch: 'main' },
+  agent: { id: 'agent-1', defaultBranch: 'main', workspaceId: 'default' },
   oracles: [],
   telemetry: {
     backend: 'cloudflare'
