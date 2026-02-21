@@ -20,3 +20,11 @@ Production deploys run on pushes to `main` and execute:
 4. `/health` smoke test
 
 If any step fails, the notifications webhook is called.
+
+## Required Secrets
+
+In addition to existing Neon and Cloudflare secrets, configure:
+
+- `CLICKHOUSE_HOST` — ClickHouse Cloud instance URL
+- `CLICKHOUSE_USER` — ClickHouse username
+- `CLICKHOUSE_PASSWORD` — ClickHouse password

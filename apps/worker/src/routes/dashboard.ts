@@ -1,53 +1,72 @@
-import schema from '../../../../packages/core/src/schema'
-import type { DB } from '../db'
+type AnalyticsQueryResult = {
+  success?: boolean
+  errors?: Array<{ message?: string }>
+  result?: unknown
+}
 
-export async function renderDashboard(db: DB) {
-  const endpoints = await db.select().from(schema.schema_endpoints)
-  const branches = await db.select().from(schema.branches)
+export async function dashboardHandler(_req: Request, env: Env): Promise<Response> {
+  if (!env.CF_ACCOUNT_ID || !env.CF_API_TOKEN) {
+    return new Response(renderDashboard({ error: 'missing CF_ACCOUNT_ID or CF_API_TOKEN env vars' }), {
+      headers: { 'Content-Type': 'text/html' },
+      status: 500
+    })
+  }
 
-  const endpointRows = endpoints.map((endpoint: any) => {
-    return `<tr><td>${endpoint.name}</td><td>${endpoint.driftStatus ?? 'UNKNOWN'}</td><td>${endpoint.currentHash ?? 'unknown'}</td></tr>`
-  }).join('')
+  const res = await fetch(
+    `https://api.cloudflare.com/client/v4/accounts/${env.CF_ACCOUNT_ID}/analytics_engine/sql`,
+    {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${env.CF_API_TOKEN}`,
+        'Content-Type': 'text/plain'
+      },
+      body: `
+        SELECT
+          blob1 as agent_id,
+          index1 as event_type,
+          blob4 as severity,
+          SUM(double4) as human_required_count,
+          COUNT() as total,
+          toStartOfHour(timestamp) as hour
+        FROM contextgraph_events
+        WHERE timestamp > NOW() - INTERVAL '24' HOUR
+        GROUP BY agent_id, event_type, severity, hour
+        ORDER BY hour DESC
+      `
+    }
+  )
 
-  const branchRows = branches.map((branch: any) => {
-    return `<tr><td>${branch.name}</td><td>${branch.status ?? 'ACTIVE'}</td><td>${branch.headHash ?? 'genesis'}</td></tr>`
-  }).join('')
+  const data = (await res.json().catch(() => ({ success: false, errors: [{ message: 'invalid json response' }] }))) as AnalyticsQueryResult
+  if (!res.ok || data.success === false) {
+    return new Response(renderDashboard({ error: data.errors?.[0]?.message ?? 'analytics query failed' }), {
+      headers: { 'Content-Type': 'text/html' },
+      status: 502
+    })
+  }
 
-  return `<!doctype html>
+  return new Response(renderDashboard(data), {
+    headers: { 'Content-Type': 'text/html' }
+  })
+}
+
+export function renderDashboard(data: unknown): string {
+  return `<!DOCTYPE html>
 <html>
 <head>
-  <meta charset="utf-8" />
   <title>ContextGraph Dashboard</title>
   <style>
-    body { font-family: ui-sans-serif, system-ui, sans-serif; margin: 24px; color: #111; }
-    h1 { font-size: 24px; margin-bottom: 12px; }
-    h2 { font-size: 18px; margin-top: 24px; }
-    table { border-collapse: collapse; width: 100%; margin-top: 8px; }
-    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-    th { background: #f5f5f5; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 16px; }
-    .card { border: 1px solid #ddd; padding: 12px; border-radius: 6px; }
+    body { font-family: monospace; background: #0a0a0a; color: #e0e0e0; padding: 2rem; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #333; padding: 0.5rem 1rem; text-align: left; }
+    th { background: #1a1a1a; }
+    .breaking { color: #ff4444; }
+    .synchronized { color: #44ff44; }
+    .human { color: #ffaa00; }
   </style>
 </head>
 <body>
-  <h1>ContextGraph Dashboard</h1>
-  <div class="grid">
-    <div class="card"><strong>Drift events (24h)</strong><div>Data source pending</div></div>
-    <div class="card"><strong>Human-required queue</strong><div>Data source pending</div></div>
-    <div class="card"><strong>Convergence promotions</strong><div>Data source pending</div></div>
-  </div>
-
-  <h2>Active Branches</h2>
-  <table>
-    <thead><tr><th>Name</th><th>Status</th><th>Head</th></tr></thead>
-    <tbody>${branchRows}</tbody>
-  </table>
-
-  <h2>Schema Endpoints</h2>
-  <table>
-    <thead><tr><th>Name</th><th>Drift Status</th><th>Hash</th></tr></thead>
-    <tbody>${endpointRows}</tbody>
-  </table>
+  <h1>ContextGraph — Last 24h</h1>
+  <pre>${JSON.stringify(data, null, 2)}</pre>
 </body>
 </html>`
 }

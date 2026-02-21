@@ -1,4 +1,37 @@
 import { trace, SpanStatusCode } from '@opentelemetry/api'
+import type { DriftSeverity } from '@core/types'
+import type { EngineEventType } from '../engine/events'
+export { CompositeBackend } from './composite'
+
+export interface TelemetryBackend {
+  record(event: TelemetryEvent): void
+  flush?(): Promise<void>
+}
+
+export interface TelemetryEvent {
+  eventType: EngineEventType
+  agentId: string
+  branchName: string
+  timestamp?: number
+  workspaceId?: string
+  agentRole?: string
+  driftStatus?: string
+  endpointId?: string
+  severity?: DriftSeverity
+  collisionClass?: string
+  humanRequired?: boolean
+  decayScore?: number
+  tokenCount?: number
+  durationMs?: number
+  traceId?: string
+  spanId?: string
+  parentSpanId?: string
+  payload?: Record<string, unknown>
+}
+
+export class NoopBackend implements TelemetryBackend {
+  record() {}
+}
 
 export type AttributeValue = string | number | boolean
 export type SpanAttributes = Record<string, AttributeValue>

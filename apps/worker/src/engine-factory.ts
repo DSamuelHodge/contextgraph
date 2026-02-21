@@ -14,7 +14,13 @@ import type { DB } from './db'
 
 export type BuildIndexFn = (db: DB, agentId: string, branchName: string) => Promise<string>
 
-export function createEngine(db: DB, buildIndex: BuildIndexFn, events = new EngineEventEmitter()) {
+const engineEventBus = new EngineEventEmitter()
+
+export function getEngineEventBus() {
+  return engineEventBus
+}
+
+export function createEngine(db: DB, buildIndex: BuildIndexFn, events = engineEventBus) {
   const drift = new DriftDetector({
     loadTypeMap: async (endpointId: string) => {
       const endpoint = await db

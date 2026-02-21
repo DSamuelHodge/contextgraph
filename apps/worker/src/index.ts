@@ -4,14 +4,18 @@ import { buildContextGraphSchema } from '../../../packages/core/src/graphql/sche
 import schema from '../../../packages/core/src/schema'
 import { createDb, type DB } from './db'
 import { buildContextIndexPayload, serializeContextIndex } from './context-index'
-import { createEngine, type BuildIndexFn } from './engine-factory'
+import { createEngine, getEngineEventBus, type BuildIndexFn } from './engine-factory'
 import { authMiddleware } from './middleware/auth'
 import { pushMiddleware } from './middleware/push'
 import { oracleMiddleware } from './middleware/oracle'
 import { handleDriftQueue } from './drift-consumer'
 import { AgentSessionDO } from './AgentSessionDO'
 import type { ContextGraphEngine } from '../../../packages/core/src/engine'
-import { renderDashboard } from './routes/dashboard'
+import { dashboardHandler } from './routes/dashboard'
+import { CloudflareAnalyticsBackend } from './telemetry/cf-analytics'
+import { ClickHouseBackend } from './telemetry/clickhouse-backend'
+import { OtelBridge } from './telemetry/otel-bridge'
+import { CompositeBackend, NoopBackend, type TelemetryBackend } from '@core/telemetry'
 
 export type AppOptions = {
   skipAuth?: boolean
@@ -30,8 +34,49 @@ type AppBindings = {
   }
 }
 
+function parsePositiveInt(value: string | undefined, fallback: number): number {
+  if (!value) return fallback
+  const parsed = Number.parseInt(value, 10)
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback
+}
+
+function buildTelemetryBackend(env: Env): TelemetryBackend {
+  const mode = env.TELEMETRY_BACKEND ?? 'both'
+  const backends: TelemetryBackend[] = []
+
+  if ((mode === 'cloudflare' || mode === 'both') && env.ANALYTICS) {
+    backends.push(new CloudflareAnalyticsBackend(env.ANALYTICS))
+  }
+
+  if ((mode === 'clickhouse' || mode === 'both') && env.CLICKHOUSE_HOST && env.CLICKHOUSE_USER && env.CLICKHOUSE_PASSWORD) {
+    backends.push(
+      new ClickHouseBackend({
+        host: env.CLICKHOUSE_HOST,
+        database: env.CLICKHOUSE_DATABASE ?? 'contextgraph',
+        username: env.CLICKHOUSE_USER,
+        password: env.CLICKHOUSE_PASSWORD,
+        workspaceId: env.WORKSPACE_ID ?? 'default',
+        batchSize: parsePositiveInt(env.CLICKHOUSE_BATCH_SIZE, 50),
+        flushIntervalMs: parsePositiveInt(env.CLICKHOUSE_FLUSH_INTERVAL_MS, 5000)
+      })
+    )
+  }
+
+  if (mode === 'otel' || mode === 'both') {
+    backends.push(new OtelBridge())
+  }
+
+  if (backends.length === 0) {
+    return new NoopBackend()
+  }
+
+  return backends.length === 1 ? backends[0] : new CompositeBackend(backends)
+}
+
 export function createApp(options: AppOptions = {}) {
   const app = new Hono<AppBindings>()
+  const eventBus = getEngineEventBus()
+  let telemetryConfigured = false
   const createDbFn = options.createDb ?? createDb
   const buildIndexFn: BuildIndexFn = options.buildIndex ?? (async (db, agentId, branchName) => {
     const payload = await buildContextIndexPayload(db, agentId, branchName)
@@ -39,13 +84,18 @@ export function createApp(options: AppOptions = {}) {
   })
 
   app.use('*', async (c, next) => {
+    if (!telemetryConfigured) {
+      eventBus.setTelemetry(buildTelemetryBackend(c.env))
+      telemetryConfigured = true
+    }
+
     const agentId = c.req.header('x-agent-id') ?? ''
     const branchName = c.req.header('x-branch-name') ?? 'main'
     c.set('agentId', agentId)
     c.set('branchName', branchName)
 
     const db = createDbFn(c.env)
-    const engine = createEngine(db, buildIndexFn)
+    const engine = createEngine(db, buildIndexFn, eventBus)
     c.set('db', db)
     c.set('engine', engine)
 
@@ -100,8 +150,7 @@ export function createApp(options: AppOptions = {}) {
   })
 
   app.get('/dashboard', async (c) => {
-    const html = await renderDashboard(c.get('db'))
-    return c.html(html)
+    return dashboardHandler(c.req.raw, c.env)
   })
 
   app.post('/webhooks/schema-change', async (c) => {

@@ -11,6 +11,12 @@
       "preview_id": "e43511446d5947a8a8c87bb527330b7d"
     }
   ],
+  "analytics_engine_datasets": [
+    {
+      "binding": "ANALYTICS",
+      "dataset": "contextgraph_events"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {
@@ -49,7 +55,15 @@
     }
   ],
   "vars": {
-    "HUMAN_REQUIRED_WEBHOOK": ""
+    "HUMAN_REQUIRED_WEBHOOK": "",
+    "TELEMETRY_BACKEND": "both",
+    "WORKSPACE_ID": "default",
+    "CLICKHOUSE_HOST": "",
+    "CLICKHOUSE_USER": "",
+    "CLICKHOUSE_PASSWORD": "",
+    "CLICKHOUSE_DATABASE": "contextgraph",
+    "CLICKHOUSE_BATCH_SIZE": "50",
+    "CLICKHOUSE_FLUSH_INTERVAL_MS": "5000"
   },
   "env": {
     "preview": {
