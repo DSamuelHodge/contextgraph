@@ -21,3 +21,21 @@ Implement the `ContextGraphMetrics` interface in packages/core/src/telemetry and
 ## Workers
 
 Use a Cloudflare-compatible exporter (Honeycomb, Datadog, or OTLP over HTTP). The Worker dashboard is served at `/dashboard`.
+
+### Dashboard setup (`/dashboard`)
+
+The dashboard route queries Cloudflare Analytics Engine SQL directly and requires two Worker env vars:
+
+- `CF_ACCOUNT_ID` — your Cloudflare account ID
+- `CF_API_TOKEN` — API token with access to Analytics Engine SQL for that account
+
+Add them as Worker secrets/vars before calling `/dashboard`:
+
+```bash
+wrangler secret put CF_API_TOKEN
+wrangler secret put CF_ACCOUNT_ID
+```
+
+Also ensure your Worker has an Analytics Engine dataset binding named `ANALYTICS` (dataset: `contextgraph_events`) in `wrangler.jsonc`.
+
+If either env var is missing, `/dashboard` returns a 500 with a setup error message.
