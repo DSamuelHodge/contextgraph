@@ -51,11 +51,31 @@ export function serializeContextIndex(payload: ContextIndexPayload): string {
   let tokenEstimate = estimateTokens(JSON.stringify(index))
   if (tokenEstimate > 200) {
     let skills = index.skillIndex
+    let endpoints = index.endpoints
     while (skills.length && tokenEstimate > 200) {
       skills = skills.slice(0, Math.max(0, skills.length - 1))
-      tokenEstimate = estimateTokens(JSON.stringify({ ...index, skillIndex: skills }))
+      tokenEstimate = estimateTokens(JSON.stringify({ ...index, skillIndex: skills, endpoints }))
     }
-    index = { ...index, skillIndex: skills }
+
+    while (endpoints.length && tokenEstimate > 200) {
+      endpoints = endpoints.slice(0, Math.max(0, endpoints.length - 1))
+      tokenEstimate = estimateTokens(JSON.stringify({ ...index, skillIndex: skills, endpoints }))
+    }
+
+    if (tokenEstimate > 200) {
+      const minimal = {
+        agentId: index.agentId,
+        branch: index.branch,
+        headHash: index.headHash,
+        endpoints: [] as ContextIndexPayload['endpoints'],
+        skillIndex: [] as string[],
+        knowledgeCount: index.knowledgeCount,
+        driftWarning: index.driftWarning
+      }
+      return JSON.stringify(minimal)
+    }
+
+    index = { ...index, skillIndex: skills, endpoints }
   }
   return JSON.stringify(index)
 }

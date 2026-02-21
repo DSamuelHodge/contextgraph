@@ -11,6 +11,12 @@
       "preview_id": "e43511446d5947a8a8c87bb527330b7d"
     }
   ],
+  "analytics_engine_datasets": [
+    {
+      "binding": "ANALYTICS",
+      "dataset": "contextgraph_events"
+    }
+  ],
   "durable_objects": {
     "bindings": [
       {

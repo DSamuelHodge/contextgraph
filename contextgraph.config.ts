@@ -6,6 +6,9 @@ const config: ContextGraphConfig = {
     defaultBranch: 'main'
   },
   oracles: [],
+  telemetry: {
+    backend: 'cloudflare'
+  },
   pushContext: {
     maxTokens: 200,
     includeSkillIndex: true,

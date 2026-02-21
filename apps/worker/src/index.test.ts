@@ -25,6 +25,7 @@ describe('worker push middleware', () => {
     const env = {
       HYPERDRIVE: { connectionString: 'postgres://test' },
       CONTEXT_INDEX: createKv(),
+      ANALYTICS: { writeDataPoint: () => {} },
       DRIFT_QUEUE: { send: async () => {} },
       AGENT_SESSION: {
         idFromName: () => 'agent',

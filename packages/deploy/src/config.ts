@@ -1,6 +1,13 @@
 export interface ContextGraphConfig {
   agent: { id: string; defaultBranch: string }
   oracles: Array<{ name: string; uri: string }>
+  telemetry?: {
+    backend: 'cloudflare' | 'otel' | 'both'
+    otel?: {
+      endpoint?: string
+      headers?: Record<string, string>
+    }
+  }
   pushContext: {
     maxTokens: number
     includeSkillIndex: boolean
@@ -21,6 +28,9 @@ export interface ContextGraphConfig {
 export const defaultConfig: ContextGraphConfig = {
   agent: { id: 'agent-1', defaultBranch: 'main' },
   oracles: [],
+  telemetry: {
+    backend: 'cloudflare'
+  },
   pushContext: {
     maxTokens: 200,
     includeSkillIndex: true,

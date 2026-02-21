@@ -4,14 +4,17 @@ import { buildContextGraphSchema } from '../../../packages/core/src/graphql/sche
 import schema from '../../../packages/core/src/schema'
 import { createDb, type DB } from './db'
 import { buildContextIndexPayload, serializeContextIndex } from './context-index'
-import { createEngine, type BuildIndexFn } from './engine-factory'
+import { createEngine, getEngineEventBus, type BuildIndexFn } from './engine-factory'
 import { authMiddleware } from './middleware/auth'
 import { pushMiddleware } from './middleware/push'
 import { oracleMiddleware } from './middleware/oracle'
 import { handleDriftQueue } from './drift-consumer'
 import { AgentSessionDO } from './AgentSessionDO'
 import type { ContextGraphEngine } from '../../../packages/core/src/engine'
-import { renderDashboard } from './routes/dashboard'
+import { dashboardHandler } from './routes/dashboard'
+import { CloudflareAnalyticsBackend } from './telemetry/cf-analytics'
+import { OtelBridge } from './telemetry/otel-bridge'
+import { CompositeBackend } from '@core/telemetry'
 
 export type AppOptions = {
   skipAuth?: boolean
@@ -32,6 +35,8 @@ type AppBindings = {
 
 export function createApp(options: AppOptions = {}) {
   const app = new Hono<AppBindings>()
+  const eventBus = getEngineEventBus()
+  let telemetryConfigured = false
   const createDbFn = options.createDb ?? createDb
   const buildIndexFn: BuildIndexFn = options.buildIndex ?? (async (db, agentId, branchName) => {
     const payload = await buildContextIndexPayload(db, agentId, branchName)
@@ -39,13 +44,20 @@ export function createApp(options: AppOptions = {}) {
   })
 
   app.use('*', async (c, next) => {
+    if (!telemetryConfigured) {
+      const analyticsBackend = new CloudflareAnalyticsBackend(c.env.ANALYTICS)
+      const otelBridge = new OtelBridge()
+      eventBus.setTelemetry(new CompositeBackend([analyticsBackend, otelBridge]))
+      telemetryConfigured = true
+    }
+
     const agentId = c.req.header('x-agent-id') ?? ''
     const branchName = c.req.header('x-branch-name') ?? 'main'
     c.set('agentId', agentId)
     c.set('branchName', branchName)
 
     const db = createDbFn(c.env)
-    const engine = createEngine(db, buildIndexFn)
+    const engine = createEngine(db, buildIndexFn, eventBus)
     c.set('db', db)
     c.set('engine', engine)
 
@@ -100,8 +112,7 @@ export function createApp(options: AppOptions = {}) {
   })
 
   app.get('/dashboard', async (c) => {
-    const html = await renderDashboard(c.get('db'))
-    return c.html(html)
+    return dashboardHandler(c.req.raw, c.env)
   })
 
   app.post('/webhooks/schema-change', async (c) => {

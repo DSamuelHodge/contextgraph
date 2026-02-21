@@ -1,4 +1,59 @@
 import { trace, SpanStatusCode } from '@opentelemetry/api'
+import type { DriftSeverity } from '@core/types'
+import type { EngineEventType } from '../engine/events'
+
+export interface TelemetryBackend {
+  record(event: TelemetryEvent): void
+  flush?(): Promise<void>
+}
+
+export interface TelemetryEvent {
+  eventType: EngineEventType
+  agentId: string
+  branchName: string
+  endpointId?: string
+  severity?: DriftSeverity
+  collisionClass?: string
+  humanRequired?: boolean
+  decayScore?: number
+  tokenCount?: number
+  durationMs?: number
+  traceId?: string
+  spanId?: string
+  parentSpanId?: string
+}
+
+export class NoopBackend implements TelemetryBackend {
+  record() {}
+}
+
+export class CompositeBackend implements TelemetryBackend {
+  constructor(private backends: TelemetryBackend[]) {}
+
+  record(event: TelemetryEvent): void {
+    for (const backend of this.backends) {
+      try {
+        backend.record(event)
+      } catch {
+        // ignore telemetry backend errors
+      }
+    }
+  }
+
+  async flush(): Promise<void> {
+    const flushers = this.backends
+      .map((backend) => backend.flush)
+      .filter((flush): flush is () => Promise<void> => typeof flush === 'function')
+      .map(async (flush) => {
+        try {
+          await flush()
+        } catch {
+          // ignore telemetry backend errors
+        }
+      })
+    await Promise.all(flushers)
+  }
+}
 
 export type AttributeValue = string | number | boolean
 export type SpanAttributes = Record<string, AttributeValue>

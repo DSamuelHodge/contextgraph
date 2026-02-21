@@ -8,6 +8,9 @@ const config: ContextGraphConfig = {
   oracles: [
     { name: 'primary', uri: 'https://example.com/graphql' }
   ],
+  telemetry: {
+    backend: 'cloudflare'
+  },
   pushContext: {
     maxTokens: 200,
     includeSkillIndex: true,
