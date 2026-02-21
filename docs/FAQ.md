@@ -135,6 +135,21 @@ try {
 | `CLOUDFLARE_ACCOUNT_ID` | Target account |
 | `NEON_API_KEY` | Manage Neon projects |
 | `DATABASE_URL` | Run `drizzle-kit migrate` in CI |
+| `CLICKHOUSE_HOST` | ClickHouse Cloud endpoint |
+| `CLICKHOUSE_USER` | ClickHouse username |
+| `CLICKHOUSE_PASSWORD` | ClickHouse password |
+
+---
+
+**Q: How do I enable ClickHouse telemetry?**
+
+Set telemetry mode to `clickhouse` (or `both`) and configure `CLICKHOUSE_HOST`, `CLICKHOUSE_USER`, and `CLICKHOUSE_PASSWORD` in worker env/secrets. Then apply [docs/clickhouse/schema.sql](clickhouse/schema.sql) to your ClickHouse database.
+
+---
+
+**Q: Why do I see an OTel no-provider warning at startup?**
+
+ContextGraph uses `@opentelemetry/api` only. If no OpenTelemetry SDK/provider is registered before worker initialization, spans are no-op by design and a warning is logged. Register a provider (or use `cloudflare` / `clickhouse` telemetry mode) to emit real traces.
 
 ---
 

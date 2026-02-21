@@ -45,6 +45,24 @@ curl -X POST https://your-worker.workers.dev/graphql \
 
 From that point, ContextGraph continuously tracks drift and keeps agent memory aligned with your live schema.
 
+## Telemetry Tiers
+
+ContextGraph supports three telemetry paths:
+
+- **Cloudflare Analytics Engine** (`TELEMETRY_BACKEND=cloudflare`) for zero-config operational dashboards.
+- **ClickHouse** (`TELEMETRY_BACKEND=clickhouse` or `both`) for long-term ROI analytics and SQL.
+- **OTel bridge** (`TELEMETRY_BACKEND=otel` or `both`) for enterprise BYO observability.
+
+For ClickHouse mode, set these worker secrets/vars:
+
+- `CLICKHOUSE_HOST`
+- `CLICKHOUSE_USER`
+- `CLICKHOUSE_PASSWORD`
+
+Then apply [docs/clickhouse/schema.sql](docs/clickhouse/schema.sql) and see [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md) for setup and ROI query patterns.
+
+Note: OTel spans require a registered provider/SDK in your runtime. Without a provider, ContextGraph logs a startup warning and spans are intentionally no-op.
+
 ## First Agent Session
 ```ts
 import { ContextGraphClient } from '@contextgraph/core'
