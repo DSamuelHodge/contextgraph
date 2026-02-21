@@ -1,0 +1,62 @@
+{
+  "name": "contextgraph-worker",
+  "main": "src/index.ts",
+  "compatibility_date": "2024-12-01",
+  "workers_dev": true,
+  "node_compat": false,
+  "kv_namespaces": [
+    {
+      "binding": "CONTEXT_INDEX",
+      "id": "CONTEXT_INDEX_ID",
+      "preview_id": "CONTEXT_INDEX_PREVIEW_ID"
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AGENT_SESSION",
+        "class_name": "AgentSessionDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_classes": ["AgentSessionDO"]
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "DRIFT_QUEUE",
+        "queue": "contextgraph-drift"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "contextgraph-drift",
+        "max_batch_size": 1,
+        "max_batch_timeout": 30,
+        "max_retries": 3,
+        "dead_letter_queue": "contextgraph-drift-dlq"
+      }
+    ]
+  },
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "HYPERDRIVE_ID"
+    }
+  ],
+  "vars": {
+    "HUMAN_REQUIRED_WEBHOOK": ""
+  },
+  "env": {
+    "preview": {
+      "name": "contextgraph-preview"
+    },
+    "production": {
+      "name": "contextgraph"
+    }
+  }
+}
