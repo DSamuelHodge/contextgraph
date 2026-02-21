@@ -35,6 +35,7 @@ jobs:
       - name: Migrate database
         env:
           NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: pnpm -w run db:migrate
 
       - name: Deploy worker
