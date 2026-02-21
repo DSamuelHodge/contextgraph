@@ -16,6 +16,8 @@ Required Secrets and CI
 
 The CI and deploy workflows use the following secrets: `NEON_API_KEY`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `HYPERDRIVE_PREVIEW_ID`.
 
+Preview workflows patch `apps/worker/wrangler.jsonc` in-place to inject `NEON_BRANCH_URL` into the existing `env.preview` block.
+
 Code style and testing
 
 - Formatting and linting: `biome`

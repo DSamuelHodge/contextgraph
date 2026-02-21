@@ -1,0 +1,105 @@
+name: Preview
+
+on:
+  pull_request:
+    types: [opened, synchronize, closed]
+
+jobs:
+  preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 10
+
+      - name: Install deps
+        run: pnpm install
+
+      - name: Install CLIs
+        run: |
+          npm install -g neonctl@latest
+          npm install -g wrangler@latest
+
+      - name: Create Neon branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: |
+          neonctl branches create --name preview/${{ github.head_ref }} --output json > neon.json
+          node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('neon.json','utf-8')); const url=data.connection_uri||data.connectionUri||data.database?.connection_uri; if(!url) { throw new Error('Missing NEON_BRANCH_URL'); } fs.writeFileSync('neon-url.txt', url);"
+
+      - name: Create Hyperdrive
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          wrangler hyperdrive create contextgraph-preview-${{ github.event.pull_request.number }} --connection-string "$(cat neon-url.txt)" --json > hyperdrive.json
+          node -e "const fs=require('fs'); const data=JSON.parse(fs.readFileSync('hyperdrive.json','utf-8')); if(!data.id) { throw new Error('Missing HYPERDRIVE_ID'); } fs.writeFileSync('hyperdrive-id.txt', data.id);"
+
+      - name: Patch wrangler.jsonc preview env
+        run: |
+          node -e "const fs=require('fs'); const p='apps/worker/wrangler.jsonc'; let c=fs.readFileSync(p,'utf-8'); const neon=fs.readFileSync('neon-url.txt','utf-8').trim(); const hyper=fs.readFileSync('hyperdrive-id.txt','utf-8').trim(); c=c.replace(/HYPERDRIVE_ID/g, hyper); if(!c.includes('NEON_BRANCH_URL')){ c=c.replace(/\"preview\"\s*:\s*\{/, '"preview": {\n      "vars": {\n        "NEON_BRANCH_URL": "'+neon+'"\n      },'); } else { c=c.replace(/NEON_BRANCH_URL\"\s*:\s*\"[^\"]*\"/, 'NEON_BRANCH_URL": "'+neon+'"'); } fs.writeFileSync(p,c);"
+
+      - name: Deploy preview worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: wrangler deploy --env preview
+
+      - name: Comment preview URLs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request
+            const url = `https://contextgraph-preview.${process.env.CF_ACCOUNT}.workers.dev`
+            const body = `Preview deployed:\n- Worker: ${url}\n- GraphQL: ${url}/graphql`
+            await github.rest.issues.createComment({
+              issue_number: pr.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            })
+        env:
+          CF_ACCOUNT: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+  cleanup:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Install CLIs
+        run: |
+          npm install -g neonctl@latest
+          npm install -g wrangler@latest
+
+      - name: Delete preview worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: wrangler delete contextgraph-preview --env preview --yes
+
+      - name: Delete Neon branch
+        env:
+          NEON_API_KEY: ${{ secrets.NEON_API_KEY }}
+        run: neonctl branches delete preview/${{ github.head_ref }}
+
+      - name: Comment cleanup
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request
+            const body = 'Preview resources torn down.'
+            await github.rest.issues.createComment({
+              issue_number: pr.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body
+            })

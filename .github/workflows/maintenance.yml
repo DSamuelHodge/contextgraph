@@ -1,0 +1,14 @@
+name: Maintenance
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger maintenance
+        env:
+          WORKER_URL: https://contextgraph.workers.dev/agent/maintenance
+        run: curl --fail --silent -X POST "$WORKER_URL"
