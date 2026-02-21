@@ -31,6 +31,20 @@ curl -X POST https://your-worker.workers.dev/graphql \
 
 ---
 
+**Q: How do I integrate a pre-existing GraphQL schema?**
+
+Treat your existing API as an oracle — no rewrite required. Add it to `oracles`, deploy, then run `syncSchema` once.
+
+```typescript
+oracles: [
+  { name: 'my-api', uri: 'https://your-app.com/api/graphql' }
+]
+```
+
+ContextGraph introspects the live schema and keeps agent memory aligned as the schema evolves.
+
+---
+
 ## Schema & Endpoints
 
 **Q: Do I need to document my schema for the agent?**
