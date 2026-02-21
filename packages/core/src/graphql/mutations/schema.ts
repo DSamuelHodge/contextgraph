@@ -1,6 +1,6 @@
-import { builder } from '../builder'
+import { GraphQLNonNull, GraphQLString, GraphQLObjectType, GraphQLList } from 'graphql'
+import type { DB } from '@core/db'
 import schema from '@core/schema'
-import { SyncResultType } from '../types'
 import { eq } from 'drizzle-orm'
 
 const INTROSPECTION_QUERY = `
@@ -17,14 +17,25 @@ async function sha256Hex(input: string) {
   return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
-builder.mutationField('syncSchema', t => t.field({
-  type: SyncResultType,
-  args: builder.args((t) => ({
-    endpointId: t.id({ required: true })
-  })),
-  resolve: async (_root, args, ctx) => {
-    const { endpointId } = args as any
-    const rows = await ctx.db.select().from(schema.schema_endpoints).where(eq(schema.schema_endpoints.id, endpointId)).limit(1)
+export const SyncResultType = new GraphQLObjectType({
+  name: 'SyncResult',
+  fields: {
+    endpointId: { type: GraphQLString },
+    driftStatus: { type: GraphQLString },
+    severity: { type: GraphQLString },
+    affectedBranchNames: { type: new GraphQLList(GraphQLString) },
+    recommendedAction: { type: GraphQLString }
+  }
+})
+
+export const syncSchemaArgs = {
+  endpointId: { type: new GraphQLNonNull(GraphQLString) }
+}
+
+export function syncSchemaResolver(db: DB) {
+  return async (_root: unknown, args: any) => {
+    const { endpointId } = args
+    const rows = await db.select().from(schema.schema_endpoints).where(eq(schema.schema_endpoints.id, endpointId)).limit(1)
     const endpoint = rows?.[0]
     if (!endpoint) throw new Error('endpoint not found')
 
@@ -34,7 +45,7 @@ builder.mutationField('syncSchema', t => t.field({
 
     if (liveHash === endpoint.currentHash) {
       // update only lastIntrospectedAt
-      await ctx.db.update(schema.schema_endpoints).set({ lastIntrospectedAt: new Date() }).where(eq(schema.schema_endpoints.id, endpointId))
+      await db.update(schema.schema_endpoints).set({ lastIntrospectedAt: new Date() }).where(eq(schema.schema_endpoints.id, endpointId))
       return { endpointId, driftStatus: 'SYNCHRONIZED', severity: null, affectedBranchNames: [], recommendedAction: 'none' }
     }
 
@@ -43,14 +54,14 @@ builder.mutationField('syncSchema', t => t.field({
     let severity: string = 'ADDITIVE_DRIFT'
     if (oldSnapshot && !text.includes(oldSnapshot)) severity = 'BREAKING_DRIFT'
 
-    await ctx.db.update(schema.schema_endpoints).set({ previousHash: endpoint.currentHash, currentHash: liveHash, driftStatus: severity, typeMapSnapshot: text, lastIntrospectedAt: new Date() }).where(eq(schema.schema_endpoints.id, endpointId))
+    await db.update(schema.schema_endpoints).set({ previousHash: endpoint.currentHash, currentHash: liveHash, driftStatus: severity, typeMapSnapshot: text, lastIntrospectedAt: new Date() }).where(eq(schema.schema_endpoints.id, endpointId))
 
     const branchNames = endpoint.previousHash
-      ? (await ctx.db.select({ branchName: schema.memory_commits.branchName })
+      ? (await db.select({ branchName: schema.memory_commits.branchName })
         .from(schema.memory_commits)
         .where(eq(schema.memory_commits.schemaHash, endpoint.previousHash))
         .groupBy(schema.memory_commits.branchName)).map((r: any) => r.branchName)
       : []
     return { endpointId, driftStatus: severity, severity, affectedBranchNames: branchNames, recommendedAction: severity === 'BREAKING_DRIFT' ? 'pause-notify' : 'auto-sync' }
   }
-}))
+}

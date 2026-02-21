@@ -9,9 +9,8 @@
     "test": "vitest"
   },
   "dependencies": {
-    "@pothos/core": "^4.12.0",
-    "@pothos/plugin-drizzle": "^0.17.0",
-    "drizzle-orm": "^1.0.0-beta.2",
+    "drizzle-graphql": "latest",
+    "drizzle-orm": "0.33.0",
     "graphql": "^16.8.1",
     "postgres": "^3.4.4"
   }

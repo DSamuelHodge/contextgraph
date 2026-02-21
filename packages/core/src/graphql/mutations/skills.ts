@@ -1,18 +1,18 @@
-import { builder } from '../builder'
+import { GraphQLNonNull, GraphQLString, GraphQLFloat } from 'graphql'
+import type { DB } from '@core/db'
 import schema from '@core/schema'
-import { SkillType } from '../types'
 import { eq } from 'drizzle-orm'
 
-builder.mutationField('updateProficiency', t => t.field({
-  type: SkillType,
-  args: builder.args((t) => ({
-    skillId: t.id({ required: true }),
-    delta: t.float({ required: true }),
-    evidence: t.string({ required: true })
-  })),
-  resolve: async (_root, args, ctx) => {
-    const { skillId, delta, evidence } = args as any
-    const row = await ctx.db.select().from(schema.skills).where(eq(schema.skills.id, skillId)).limit(1)
+export const updateProficiencyArgs = {
+  skillId: { type: new GraphQLNonNull(GraphQLString) },
+  delta: { type: new GraphQLNonNull(GraphQLFloat) },
+  evidence: { type: new GraphQLNonNull(GraphQLString) }
+}
+
+export function updateProficiencyResolver(db: DB) {
+  return async (_root: unknown, args: any) => {
+    const { skillId, delta, evidence } = args
+    const row = await db.select().from(schema.skills).where(eq(schema.skills.id, skillId)).limit(1)
     const current = row?.[0]
     if (!current) throw new Error('skill not found')
     const newProficiency = Math.min(1.0, Math.max(0.0, (current.proficiency ?? 0) + delta))
@@ -22,10 +22,10 @@ builder.mutationField('updateProficiency', t => t.field({
       return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('')
     })()
 
-    const [newSkill] = await ctx.db.insert(schema.skills).values({ id: crypto.randomUUID(), name: current.name, versionHash: newVersionHash, parentHash: current.versionHash, implementation: current.implementation, proficiency: newProficiency, deprecatedBy: null }).returning()
+    const [newSkill] = await db.insert(schema.skills).values({ id: crypto.randomUUID(), name: current.name, versionHash: newVersionHash, parentHash: current.versionHash, implementation: current.implementation, proficiency: newProficiency, deprecatedBy: null }).returning()
 
-    await ctx.db.insert(schema.skill_deprecations).values({ skillId: current.id, replacedById: newSkill.id, reason: evidence })
+    await db.insert(schema.skill_deprecations).values({ skillId: current.id, replacedById: newSkill.id, reason: evidence })
 
     return newSkill
   }
-}))
+}

@@ -1,50 +1,45 @@
-import { builder } from '../builder'
+import { GraphQLBoolean, GraphQLNonNull, GraphQLString } from 'graphql'
+import type { DB } from '@core/db'
 import schema from '@core/schema'
-import { SkillType, SkillSummaryType } from '../types'
 import { eq, notInArray, lte, and, desc } from 'drizzle-orm'
 
-builder.queryField('skill', t => t.field({
-  type: SkillType,
-  args: builder.args((t) => ({
-    id: t.id({ required: true }),
-    at: t.string()
-  })),
-  resolve: async (_root, args, ctx) => {
-    const { id, at } = args as any
+export const skillArgs = {
+  id: { type: new GraphQLNonNull(GraphQLString) },
+  at: { type: GraphQLString }
+}
+
+export const skillsArgs = {
+  activeOnly: { type: GraphQLBoolean }
+}
+
+export function skillResolver(db: DB) {
+  return async (_root: unknown, args: any) => {
+    const { id, at } = args
     if (at) {
-      const res = await ctx.db.select().from(schema.skills)
+      const res = await db.select().from(schema.skills)
         .where(and(eq(schema.skills.id, id), lte(schema.skills.createdAt, new Date(at))))
         .orderBy(desc(schema.skills.createdAt))
         .limit(1)
       return res?.[0] ?? null
     }
-    const res = await ctx.db.select().from(schema.skills).where(eq(schema.skills.id, id)).limit(1)
+    const res = await db.select().from(schema.skills).where(eq(schema.skills.id, id)).limit(1)
     return res?.[0] ?? null
   }
-}))
+}
 
-builder.queryField('skills', t => t.field({
-  type: [SkillSummaryType],
-  args: builder.args((t) => ({
-    activeOnly: t.boolean()
-  })),
-  resolve: async (_root, args, ctx) => {
-    const { activeOnly } = args as any
+export function skillsResolver(db: DB) {
+  return async (_root: unknown, args: any) => {
+    const { activeOnly } = args
     if (activeOnly) {
-      const deprecations = await ctx.db.select().from(schema.skill_deprecations)
+      const deprecations = await db.select().from(schema.skill_deprecations)
       const deprecatedIds = deprecations.map((d: any) => d.skillId)
-      // return name + proficiency + versionHash only
       if (deprecatedIds.length === 0) {
-        return await ctx.db.select({ name: schema.skills.name, proficiency: schema.skills.proficiency, versionHash: schema.skills.versionHash }).from(schema.skills)
+        return await db.select({ name: schema.skills.name, proficiency: schema.skills.proficiency, versionHash: schema.skills.versionHash }).from(schema.skills)
       }
-      const rows = await ctx.db.select({ name: schema.skills.name, proficiency: schema.skills.proficiency, versionHash: schema.skills.versionHash })
+      return await db.select({ name: schema.skills.name, proficiency: schema.skills.proficiency, versionHash: schema.skills.versionHash })
         .from(schema.skills)
         .where(notInArray(schema.skills.id, deprecatedIds))
-      return rows
     }
-    const rows = await ctx.db.select({ name: schema.skills.name, proficiency: schema.skills.proficiency, versionHash: schema.skills.versionHash }).from(schema.skills)
-    return rows
+    return await db.select({ name: schema.skills.name, proficiency: schema.skills.proficiency, versionHash: schema.skills.versionHash }).from(schema.skills)
   }
-}))
-
-// SkillSummary type defined in graphql/types
+}
