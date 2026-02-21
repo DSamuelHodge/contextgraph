@@ -1,0 +1,18 @@
+{
+  "name": "@contextgraph/core",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -p ../../tsconfig.base.json",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@pothos/core": "^4.12.0",
+    "@pothos/plugin-drizzle": "^0.17.0",
+    "drizzle-orm": "^1.0.0-beta.2",
+    "graphql": "^16.8.1",
+    "postgres": "^3.4.4"
+  }
+}
