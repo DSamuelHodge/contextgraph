@@ -8,9 +8,13 @@
   ],
   "scripts": {
     "build": "pnpm -w run -r build",
-    "test": "pnpm -w run -r test",
-    "lint": "biome check",
-    "format": "biome format"
+    "deploy": "tsx packages/deploy/bin/contextgraph.ts deploy",
+    "dev": "wrangler dev apps/worker/src/index.ts",
+    "test": "vitest run",
+    "lint": "biome check .",
+    "format": "biome format",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "drizzle-kit migrate"
   },
   "devDependencies": {
     "typescript": "^5.2.0",
