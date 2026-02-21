@@ -17,6 +17,7 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "devDependencies": {
+    "drizzle-kit": "^0.24.0",
     "typescript": "^5.2.0",
     "vitest": "^1.0.0",
     "biome": "^0.3.3"
