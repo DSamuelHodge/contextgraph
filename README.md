@@ -24,6 +24,27 @@ cp contextgraph.config.example.ts contextgraph.config.ts
 npx contextgraph deploy
 ```
 
+## Integrating Existing GraphQL Schemas
+
+You do not need to rewrite your existing GraphQL API. Register each pre-existing schema as an oracle endpoint in `contextgraph.config.ts`, then run schema sync.
+
+```ts
+oracles: [
+  { name: 'my-api', uri: 'https://your-app.com/api/graphql' }
+]
+```
+
+After deploy, trigger initial introspection once:
+
+```bash
+curl -X POST https://your-worker.workers.dev/graphql \
+  -H "Content-Type: application/json" \
+  -H "x-agent-id: my-agent-01" \
+  -d '{"query": "mutation { syncSchema(endpointId: \"my-api\") { driftStatus } }"}'
+```
+
+From that point, ContextGraph continuously tracks drift and keeps agent memory aligned with your live schema.
+
 ## First Agent Session
 ```ts
 import { ContextGraphClient } from '@contextgraph/core'
